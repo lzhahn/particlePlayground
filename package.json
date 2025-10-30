@@ -1,0 +1,21 @@
+{
+  "name": "particle-playground",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8"
+  },
+  "dependencies": {
+    "@tsparticles/basic": "^3.9.1",
+    "@tsparticles/engine": "^3.9.1",
+    "@tsparticles/plugin-emitters": "^3.9.1",
+    "@tsparticles/slim": "^3.9.1"
+  }
+}
