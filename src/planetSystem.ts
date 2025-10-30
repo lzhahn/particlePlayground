@@ -1,12 +1,9 @@
 import { 
-  PLANET_CORE_SIZE,
   PLANET_HIT_RADIUS,
   REPULSE_RADIUS,
   GRAVITY_STRENGTH, 
   GRAVITY_MASS,
-  PARTICLE_BASE_SPEED, 
   PARTICLE_MAX_SPEED, 
-  PARTICLE_FRICTION,
   PARTICLE_DIAGONAL_VX,
   PARTICLE_DIAGONAL_VY,
   GENERATOR_EMIT_INTERVAL,
@@ -29,11 +26,6 @@ import {
   MAX_PARTICLES,
   PHYSICS_FRAME_SKIP,
   FADE_OUT_DURATION,
-  BURST_PARTICLE_COUNT,
-  BURST_SPEED_MIN,
-  BURST_SPEED_MAX,
-  MOUSE_VELOCITY_TRANSFER,
-  MOUSE_VELOCITY_TRANSFER_TS,
   SPARKLE_ZONE_SPAWN_MULTIPLIER,
   POP_DURATION,
   POP_SIZE,
@@ -82,28 +74,16 @@ export class PlanetSystem {
   private sparkleZones: SparkleZone[] = [];
   private resetterFields: ResetterField[] = [];
   private emittedParticles: EmittedParticle[] = [];
-  private container: HTMLElement;
-  private isDragging = false;
-  private dragStartX = 0;
-  private dragStartY = 0;
-  private previewCircle: HTMLDivElement | null = null;
   private animationFrame: number | null = null;
   private glitterContainer: HTMLDivElement;
   private mouseX = 0;
   private mouseY = 0;
-  private mouseVX: number = 0;
-  private mouseVY: number = 0;
-  private lastMouseX: number = 0;
-  private lastMouseY: number = 0;
-  private lastMouseTime: number = Date.now();
   private repulsorEnabled: boolean = true;
   private frameCount: number = 0;
   private physicsFrameSkip: number = PHYSICS_FRAME_SKIP;
   public glitterColor: string = GLITTER_COLOR_GOLD;
 
-  constructor(container: HTMLElement) {
-    this.container = container;
-    
+  constructor(_container: HTMLElement) {
     // Create glitter container
     this.glitterContainer = document.createElement('div');
     this.glitterContainer.id = 'glitter-container';
@@ -214,60 +194,8 @@ export class PlanetSystem {
   }
 
   private trackMouseVelocity(e: MouseEvent): void {
-    const currentTime = Date.now();
-    const dt = currentTime - this.lastMouseTime;
-    
-    if (dt > 0) {
-      // Calculate velocity in pixels per millisecond
-      this.mouseVX = (e.pageX - this.lastMouseX) / dt;
-      this.mouseVY = (e.pageY - this.lastMouseY) / dt;
-    }
-    
     this.mouseX = e.pageX;
     this.mouseY = e.pageY;
-    this.lastMouseX = e.pageX;
-    this.lastMouseY = e.pageY;
-    this.lastMouseTime = currentTime;
-  }
-
-  private handleMouseDown(e: MouseEvent): void {
-    // Only create particle burst on left click (button 0)
-    if (e.button === 0) {
-      this.createParticleBurst(e.pageX, e.pageY);
-    }
-  }
-
-  private handleMouseMove(e: MouseEvent): void {
-    if (!this.isDragging || !this.previewCircle) return;
-
-    const dx = e.pageX - this.dragStartX;
-    const dy = e.pageY - this.dragStartY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const radius = Math.min(distance, 200);
-
-    this.previewCircle.style.width = `${radius * 2}px`;
-    this.previewCircle.style.height = `${radius * 2}px`;
-  }
-
-  private handleMouseUp(e: MouseEvent): void {
-    if (!this.isDragging) return;
-
-    const dx = e.pageX - this.dragStartX;
-    const dy = e.pageY - this.dragStartY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const radius = Math.min(distance, 200);
-
-    if (radius > 20) {
-      this.createPlanet(this.dragStartX, this.dragStartY, radius);
-    }
-
-    // Remove preview circle
-    if (this.previewCircle) {
-      this.previewCircle.remove();
-      this.previewCircle = null;
-    }
-
-    this.isDragging = false;
   }
 
   private handleRightClick(e: MouseEvent): void {
@@ -295,29 +223,6 @@ export class PlanetSystem {
   public reset(): void {
     // Simply perform the reset - pops are handled by the caller
     this.performReset();
-  }
-
-  private fadeInParticles(): void {
-    const tsParticlesInstance = (window as any).tsParticles;
-    if (tsParticlesInstance) {
-      const container = tsParticlesInstance.domItem(0);
-      if (container) {
-        const canvas = container.canvas?.element;
-        if (canvas) {
-          canvas.style.opacity = '0';
-          canvas.classList.add('particle-fade-in');
-          this.glitterContainer.classList.add('particle-fade-in');
-          
-          // Remove class after animation completes
-          setTimeout(() => {
-            canvas.classList.remove('particle-fade-in');
-            canvas.style.opacity = '1';
-            this.glitterContainer.classList.remove('particle-fade-in');
-            this.glitterContainer.style.opacity = '1';
-          }, 2000);
-        }
-      }
-    }
   }
 
   private performReset(): void {
@@ -427,52 +332,6 @@ export class PlanetSystem {
     });
     
     console.log(`Planet stored with center: x=${x}, y=${y}`);
-  }
-
-  private createParticleBurst(x: number, y: number): void {
-    const tsParticlesInstance = (window as any).tsParticles;
-    if (!tsParticlesInstance) return;
-
-    const container = tsParticlesInstance.domItem(0);
-    if (!container) return;
-
-    const canvas = container.canvas?.element;
-    if (!canvas) return;
-
-    const canvasRect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / canvasRect.width;
-    const scaleY = canvas.height / canvasRect.height;
-
-    // Convert page coordinates to canvas coordinates
-    const canvasX = (x - canvasRect.left - window.scrollX) * scaleX;
-    const canvasY = (y - canvasRect.top - window.scrollY) * scaleY;
-
-    // Create particles in random directions
-    const particleCount = BURST_PARTICLE_COUNT;
-    
-    for (let i = 0; i < particleCount; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = BURST_SPEED_MIN + Math.random() * (BURST_SPEED_MAX - BURST_SPEED_MIN);
-      const vx = Math.cos(angle) * speed;
-      const vy = Math.sin(angle) * speed;
-
-      const newParticle = container.particles.addParticle({
-        x: canvasX,
-        y: canvasY,
-        vx,
-        vy,
-      });
-
-      // Track this particle for velocity transition
-      if (newParticle) {
-        this.emittedParticles.push({
-          particle: newParticle,
-          birthTime: Date.now(),
-          initialVX: vx,
-          initialVY: vy,
-        });
-      }
-    }
   }
 
   private createGenerator(x: number, y: number): void {
